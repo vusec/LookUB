@@ -1,0 +1,3 @@
+[submodule "scc"]
+	path = scc
+	url = git@github.com:vusec/scc

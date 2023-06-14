@@ -1,0 +1,18 @@
+add_module(mutator
+  COMPONENTS
+    Canonicalizer
+    CodeMoving
+    FunctionMutator
+    LiteralMaker
+    Simplifier
+    Snippets
+    StatementContext
+    StatementCreator
+    StatementMutator
+    TypeCreator
+    UnsafeGenerator
+    UnsafeMutatorBase
+    UnsafeStrategy
+  DEPENDENCIES
+    scc-mutator-utils
+)
