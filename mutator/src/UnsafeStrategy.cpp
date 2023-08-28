@@ -4,8 +4,8 @@
 
 typedef UnsafeStrategy::Frag Frag;
 
-static UnsafeStrategy getBaseUnsafeStrat(int scale) {
-  UnsafeStrategy strat("mutate x " + std::to_string(scale));
+static UnsafeStrategy getBaseUnsafeStrat(std::string name) {
+  UnsafeStrategy strat(name);
   strat.set(Frag::CallBuiltin, 0.2f);
   strat.set(Frag::CatchAll, 0.2f);
   strat.set(Frag::CleanupCompound, 0.2f);
@@ -36,12 +36,11 @@ static UnsafeStrategy getBaseUnsafeStrat(int scale) {
   strat.set(Frag::ChangeIdentifier, 0.001f);
   strat.set(Frag::RegenerateProgram, 0.02f);
   strat.set(Frag::FixMainReturn, 0.9f);
-  strat.scale = scale;
   return strat;
 }
 
 static UnsafeStrategy getBaseReductionStrat(int scale = 1) {
-  UnsafeStrategy res("reduce x " + std::to_string(scale));
+  UnsafeStrategy res("reduce");
   for (float &v : res.getValueVecRef())
     v = 0.05f;
   res.set(Frag::MutateOverDelete, 0.8f);
@@ -52,36 +51,64 @@ static UnsafeStrategy getBaseReductionStrat(int scale = 1) {
         Frag::SimplifyStmt, Frag::EmptyCompound, Frag::DeleteCompoundStmts}) {
     res.set(f, 0.2f);
   }
-  res.scale = scale;
   return res;
 }
 
 std::vector<UnsafeStrategy> UnsafeStrategy::makeMutateStrategies() {
-  auto builtinStrat = getBaseUnsafeStrat(1);
-  builtinStrat.set(Frag::CallBuiltin, 0.99);
-  builtinStrat.set(Frag::UseSnippet, 0.07);
-  builtinStrat.set(Frag::MutateFuncAttrs, 0.01);
-  builtinStrat.set(Frag::CleanupCompound, 0.01);
-  builtinStrat.set(Frag::DeleteCompoundStmts, 0.01);
-  builtinStrat.set(Frag::UseMutatedStmtAsChild, 0.4);
-  builtinStrat.set(Frag::PreferModifyingStmtsOverExprs, 0.99);
-  builtinStrat.set(Frag::PromoteChild, 0.01);
-  builtinStrat.set(Frag::PromoteChildren, 0.01);
-  builtinStrat.set(Frag::WrapInCompound, 0.01);
-  builtinStrat.set(Frag::SimplifyStmt, 0.01);
-  builtinStrat.set(Frag::MutateFoundStatement, 0.99);
-  builtinStrat.set(Frag::MutateOverDelete, 0.99);
-  builtinStrat.set(Frag::MutateCompound, 0.9);
-  builtinStrat.set(Frag::ForceCallBuiltinStmt, 1.0f);
-  builtinStrat.setName("call builtin function (stmt)");
-
-  UnsafeStrategy builtinExprStrat = builtinStrat;
-  builtinExprStrat.set(Frag::PreferModifyingStmtsOverExprs, 0.3);
-
   std::vector<UnsafeStrategy> result = {
-      getBaseUnsafeStrat(1), getBaseUnsafeStrat(3),    getBaseUnsafeStrat(6),
-      getBaseUnsafeStrat(9), getBaseReductionStrat(1), builtinStrat,
-      builtinExprStrat};
+      getBaseUnsafeStrat("generic mutate"),
+      getBaseReductionStrat()
+  };
+
+  const float nearlyAlways = 0.96f;
+  const float never = 0.01f;
+
+  {
+    UnsafeStrategy strat = getBaseUnsafeStrat("mutate function attributes");
+    strat.set(Frag::MutateFunction, nearlyAlways);
+    strat.set(Frag::MutateGlobal, never);
+    strat.set(Frag::MutateFuncAttrs, nearlyAlways);
+    result.push_back(strat);
+  }
+
+  {
+    UnsafeStrategy strat = getBaseUnsafeStrat("mutate global variable");
+    strat.set(Frag::MutateGlobal, nearlyAlways);
+    strat.set(Frag::MutateFunction, never);
+    result.push_back(strat);
+  }
+
+  {
+    UnsafeStrategy strat = getBaseUnsafeStrat("mutate stmt");
+    strat.set(Frag::MutateFunction, nearlyAlways);
+    strat.set(Frag::MutateGlobal, never);
+    strat.set(Frag::MutateFuncAttrs, never);
+    strat.set(Frag::PreferModifyingStmtsOverExprs, nearlyAlways);
+    result.push_back(strat);
+  }
+
+  {
+    UnsafeStrategy strat = getBaseUnsafeStrat("mutate expr");
+    strat.set(Frag::MutateFunction, nearlyAlways);
+    strat.set(Frag::MutateGlobal, never);
+    strat.set(Frag::MutateFuncAttrs, never);
+    strat.set(Frag::PreferModifyingStmtsOverExprs, never);
+    result.push_back(strat);
+  }
+
+  {
+    UnsafeStrategy strat = getBaseUnsafeStrat("mutate types");
+    strat.set(Frag::MutateOverDelete, never);
+    strat.set(Frag::ReorderOverDelete, never);
+    strat.set(Frag::MutateTypes, nearlyAlways);
+    result.push_back(strat);
+  }
+
+  {
+    UnsafeStrategy strat = getBaseUnsafeStrat("reorder types");
+    strat.set(Frag::ReorderOverDelete, nearlyAlways);
+    result.push_back(strat);
+  }
   return result;
 }
 
