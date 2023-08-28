@@ -175,7 +175,7 @@ public:
 
     // If we have an expression and we prefer modifying statements, then
     // try picking another one.
-    while (toModify.stmt->getEvalType() != Void()) {
+    while (toModify.stmt->isExpr()) {
       if (!decision(Frag::PreferModifyingStmtsOverExprs))
         break;
       toModify = getRng().pickOneVec(allChildren);
