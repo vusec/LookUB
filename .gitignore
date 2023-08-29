@@ -1,2 +1,4 @@
 dbg
 rel
+*.user
+*.o
