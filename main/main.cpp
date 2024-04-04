@@ -51,7 +51,8 @@ template <typename Gen> int generatorMain(const ArgParser &args) {
 
   // Create the command to run on every generated program.
   std::string evalCommand = args.getEvalCommand();
-  evalCommand = Gen::expandEvalCommand(args.argv0, evalCommand, args.seed);
+  evalCommand =
+      Gen::expandEvalCommand(args.argv0, evalCommand, RngSource(args.seed));
 
   std::string saveDir = args.saveDir;
   if (!std::filesystem::create_directory(saveDir) &&

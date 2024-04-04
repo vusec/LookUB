@@ -266,7 +266,8 @@ struct GeneratorImpl : UnsafeMutatorBase {
 };
 } // namespace
 
-std::unique_ptr<Program> UnsafeGenerator::generate(size_t seed, LangOpts opts) {
+std::unique_ptr<Program> UnsafeGenerator::generate(RngSource source,
+                                                   LangOpts opts) {
   std::unique_ptr<Program> res = std::make_unique<Program>();
   opts.setStandard(LangOpts::Standard::Cxx11);
   res->setLangOpts(opts);
@@ -275,19 +276,19 @@ std::unique_ptr<Program> UnsafeGenerator::generate(size_t seed, LangOpts opts) {
 }
 
 std::vector<UnsafeGenerator::Strategy::Frag>
-UnsafeGenerator::mutate(Program &p, size_t seed, const Strategy &strat,
+UnsafeGenerator::mutate(Program &p, RngSource source, const Strategy &strat,
                         unsigned scaleMul) {
   assert(scaleMul && "Can't be 0 or the fuzzer would do nothing");
-  StrategyInstance s(seed, strat);
-  UnsafeMutatorBase::MutatorData input(p, s, seed);
+  StrategyInstance s(source, strat);
+  UnsafeMutatorBase::MutatorData input(p, s, source);
 
   if (s.decision(UnsafeStrategy::Frag::RegenerateProgram))
-    p = *generate(seed, p.getLangOpts());
+    p = *generate(source, p.getLangOpts());
 
   std::vector<UnsafeGenerator::Strategy::Frag> decisions;
   for (unsigned i = 0; i < strat.scale * scaleMul; ++i) {
     GeneratorImpl impl(input);
-    input.seed++;
+    input.rng = input.rng.spawnChild();
     impl.mutate();
     auto n = impl.getTakenDecisions();
     decisions.insert(decisions.end(), n.begin(), n.end());
@@ -296,9 +297,9 @@ UnsafeGenerator::mutate(Program &p, size_t seed, const Strategy &strat,
 }
 
 std::vector<UnsafeStrategy::Frag>
-UnsafeGenerator::reduce(Program &p, size_t seed, const Strategy &strat) {
-  StrategyInstance s(seed, strat);
-  UnsafeMutatorBase::MutatorData input(p, s, seed);
+UnsafeGenerator::reduce(Program &p, RngSource source, const Strategy &strat) {
+  StrategyInstance s(source, strat);
+  UnsafeMutatorBase::MutatorData input(p, s, source);
   GeneratorImpl impl(input);
   impl.mutate();
   return impl.getTakenDecisions();
@@ -314,4 +315,16 @@ std::string UnsafeGenerator::getProgramSuffix(const Program &p) {
          "  int res = wrap_main(argc, argv);\n"
          "  return argc == 0 ? res : 0;\n"
          "}\n";
+}
+
+std::unique_ptr<Program>
+UnsafeGenerator::generateFromEntrophy(EntrophyVec entrophy,
+                                      UnsafeStrategy strat, LangOpts opts) {
+  RngSource rngSource(entrophy);
+
+  UnsafeGenerator gen;
+  std::unique_ptr<Program> program = gen.generate(rngSource);
+  while (entrophy.hasData())
+    gen.mutate(*program, rngSource, strat, 1);
+  return program;
 }

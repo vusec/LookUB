@@ -5,6 +5,50 @@
 
 #include <regex>
 
+/// Generates two programs from the same entrophy inputs.
+TEST(TestUnsafeGenerator, generateFromSameInputs) {
+  std::string inputStr = "asdf";
+  EntrophyVec input(inputStr);
+
+  UnsafeStrategy strat;
+  UnsafeGenerator gen;
+
+  std::unique_ptr<Program> program1 = gen.generateFromEntrophy(input, strat);
+  OutString out1;
+  OptError err1 = program1->print(out1);
+  ASSERT_FALSE(err1.hasError());
+
+  input = EntrophyVec(inputStr);
+  std::unique_ptr<Program> program2 = gen.generateFromEntrophy(input, strat);
+  OutString out2;
+  OptError err2 = program2->print(out2);
+  ASSERT_FALSE(err2.hasError());
+
+  // The same inputs should lead to the same programs.
+  EXPECT_STREQ(out1.getStr().c_str(), out2.getStr().c_str());
+}
+
+/// Generates two programs from different entrophy inputs.
+TEST(TestUnsafeGenerator, generateFromDifferentInput) {
+  UnsafeStrategy strat;
+  UnsafeGenerator gen;
+
+  EntrophyVec input1("this is the first input entrophy");
+  std::unique_ptr<Program> program1 = gen.generateFromEntrophy(input1, strat);
+  OutString out1;
+  OptError err1 = program1->print(out1);
+  ASSERT_FALSE(err1.hasError());
+
+  EntrophyVec input2("this is the second input entrophy");
+  std::unique_ptr<Program> program2 = gen.generateFromEntrophy(input2, strat);
+  OutString out2;
+  OptError err2 = program2->print(out2);
+  ASSERT_FALSE(err2.hasError());
+
+  // The different inputs should lead to different programs.
+  EXPECT_STRNE(out1.getStr().c_str(), out2.getStr().c_str());
+}
+
 /// Grows a program and then reduced it using our exploit generator.
 TEST(TestUnsafeGenerator, generateAndReduce) {
 
